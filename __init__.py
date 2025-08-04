@@ -69,7 +69,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.1.0",
+    version="0.1.1",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -84,7 +84,7 @@ class DrawConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "draw"},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
-    MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
+    MODEL_MODE: Literal["自动选择（暂不可用）", "图像生成", "聊天模式（暂不可用）"] = Field(default="图像生成", title="绘图模型调用格式")
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
     USE_SYSTEM_ROLE: bool = Field(
         default=False,
@@ -160,61 +160,9 @@ async def draw(
         raise Exception(f"绘图模型组 `{config.USE_DRAW_MODEL_GROUP}` 未配置")
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
 
-    # 处理自动选择模式
-    if config.MODEL_MODE == "自动选择":
-        # 优先使用上次成功的模式
-        modes_to_try = []
-        if last_successful_mode:
-            modes_to_try.append(last_successful_mode)
-            logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
-
-        # 添加未尝试过的模式
-        for mode in ["聊天模式", "图像生成"]:
-            if mode not in modes_to_try:
-                modes_to_try.append(mode)
-
-        # 依次尝试各种模式
-        last_error = None
-        for mode in modes_to_try:
-            logger.debug(f"尝试使用模式: {mode}")
-            try:
-                if mode == "图像生成":
-                    ret_file_url = await _generate_image(
-                        model_group,
-                        prompt,
-                        size,
-                        config.NUM_INFERENCE_STEPS,
-                        guidance_scale,
-                        source_image_data,
-                    )
-                else:  # 聊天模式
-                    ret_file_url = await _chat_image(model_group, prompt, size, refer_image, source_image_data)
-
-            except Exception as e:
-                last_error = e
-                logger.error(f"模式 {mode} 失败: {e!s}")
-                # 清除当前模式记录
-                if last_successful_mode == mode:
-                    last_successful_mode = None
-            else:
-                # 记录成功的模式
-                last_successful_mode = mode
-                return await _ctx.fs.mixed_forward_file(ret_file_url)
-
-        # 如果所有模式都失败，抛出最后一个错误
-        if last_error:
-            raise last_error
-        raise Exception("所有绘图模式都失败")  # 确保有返回值或异常
-
-    if config.MODEL_MODE == "图像生成":
-        return await _ctx.fs.mixed_forward_file(
-            await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
-        )
-    # 聊天模式
     return await _ctx.fs.mixed_forward_file(
-        await _chat_image(model_group, prompt, size, refer_image, source_image_data),
+        await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
     )
-
 
 async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
@@ -246,7 +194,6 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
     curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
 
-
     async with AsyncClient() as client:
         response = await client.post(
             url,
@@ -262,76 +209,6 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
-
-
-async def _chat_image(model_group, prompt, size, refer_image, source_image_data) -> str:
-    """使用聊天模式绘图"""
-    system_content = "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information."
-
-    msg = OpenAIChatMessage.create_empty("user")
-    if refer_image:
-        msg = msg.add(ContentSegment.image_content(source_image_data))
-        if not config.USE_SYSTEM_ROLE:
-            msg = msg.add(
-                ContentSegment.text_content(
-                    f"{system_content}\n\nCarefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
-                ),
-            )
-        else:
-            msg = msg.add(
-                ContentSegment.text_content(
-                    f"Carefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
-                ),
-            )
-    else:
-        if not config.USE_SYSTEM_ROLE:
-            msg = msg.add(
-                ContentSegment.text_content(
-                    f"{system_content}\n\nMake a picture based on the following description: {prompt} (size: {size})",
-                ),
-            )
-        else:
-            msg = msg.add(
-                ContentSegment.text_content(f"Make a picture based on the following description: {prompt} (size: {size})"),
-            )
-
-    messages = []
-    if config.USE_SYSTEM_ROLE:
-        messages.append(
-            {
-                "role": "system",
-                "content": system_content,
-            },
-        )
-    messages.append(msg.to_dict())
-
-    response = await gen_openai_chat_response(
-        model=model_group.CHAT_MODEL,
-        messages=messages,
-        base_url=model_group.BASE_URL,
-        api_key=model_group.API_KEY,
-        stream_mode=config.STREAM_MODE,
-        max_wait_time=config.TIMEOUT,
-    )
-    content = response.response_content
-
-    # 尝试 markdown 语法匹配，例如 ![alt](url)
-    m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", content)
-    if m:
-        return m.group(1)
-    # 尝试 HTML <img> 标签匹配，例如 <img src="url" />
-    m = re.search(r'<img\s+src=["\']([^"\']+)["\']', content)
-    if m:
-        return m.group(1)
-    # 尝试裸 URL 匹配，例如 http://... 或 https://...
-    m = re.search(r"(https?://\S+)", content)
-    if m:
-        return m.group(1)
-    logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(content))}")
-    raise Exception(
-        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
-    )
-
 
 @plugin.mount_cleanup_method()
 async def clean_up():
