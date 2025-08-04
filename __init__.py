@@ -69,7 +69,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.1.1",
+    version="0.1.2",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
