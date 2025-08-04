@@ -102,9 +102,6 @@ class DrawConfig(ConfigBase):
 # 获取配置
 config: DrawConfig = plugin.get_config(DrawConfig)
 
-# 保存上次成功的模式
-last_successful_mode: Optional[str] = None
-
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, name="绘图", description="支持文生图和图生图")
 async def draw(
@@ -141,10 +138,10 @@ async def draw(
         # Modify existing image
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg")) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
     """
-    global last_successful_mode
+
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
-    logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
+    # logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
         async with aiofiles.open(
             convert_to_host_path(Path(refer_image), chat_key=_ctx.chat_key, container_key=_ctx.container_key),
@@ -194,7 +191,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
     curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
 
-    return curl_command
+    logger.info(curl_command)
 
     async with AsyncClient() as client:
         response = await client.post(
