@@ -194,6 +194,8 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
     curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
 
+    return curl_command
+
     async with AsyncClient() as client:
         response = await client.post(
             url,
