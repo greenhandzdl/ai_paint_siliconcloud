@@ -60,7 +60,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.2.0",
+    version="0.2.1",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -174,6 +174,9 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
         "num_inference_steps": num_inference_steps,
         "guidance_scale": guidance_scale,
     }
+    # 这里加个判断，如果source_image_data != "data:image/webp;base64, XXX"则在json_data中填入image
+    if source_image_data != "data:image/webp;base64, XXX":
+        json_data["image"] = source_image_data
 
     # 合并打印信息为一条curl命令
     # curl_command = f"curl -X POST '{url}' \\\n"
