@@ -236,6 +236,14 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
         "guidance_scale": guidance_scale,
     }
 
+    ## Debug
+    # 打印构造出来的链接
+    print(f"构造的请求链接: {url}")
+    # 打印请求参数
+    print("请求参数:")
+    print(f"  Headers: {headers}")
+    print(f"  JSON Data: {json_data}")
+
     async with AsyncClient() as client:
         response = await client.post(
             url,
