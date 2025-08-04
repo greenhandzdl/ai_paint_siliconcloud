@@ -7,13 +7,13 @@
 ## 主要功能
 
 - **文生图**: 根据用户或 AI 提供的自然语言描述（Prompt），生成一张全新的图片。
-- **图生图 (图片参考)**: 在生成图片时，可以提供一张参考图，让 AI 模仿其风格或保留其元素。
-- **多模型支持**: 可以接入任何兼容 OpenAI 格式的图像生成模型，并通过配置进行切换。
+- **图生图 (暂不支持)**: 在生成图片时，可以提供一张参考图，让 AI 模仿其风格或保留其元素。
+- **多模型支持(不支持)**: 可以接入任何兼容 OpenAI 格式的图像生成模型，并通过配置进行切换。
 
 ## 使用方法
 
 - **与 AI 对话**: 直接对 AI 说 "画一只在晒太阳的橘猫"，AI 就会调用此插件来完成绘画。
-- **修改图片**: 发送一张图片并告诉 AI 如何修改，例如"把背景换成樱花公园"，AI 会使用图生图功能来处理。
+- **修改图片(不支持)**: 发送一张图片并告诉 AI 如何修改，例如"把背景换成樱花公园"，AI 会使用图生图功能来处理。
 
 ## 配置说明
 
@@ -28,13 +28,6 @@
 
 > 如果你的配置无法正常工作，请根据选择的模型参考以下配置进行调整
 
-- **gemini-2.0-flash-exp-image-generation**: 使用 Gemini 模型进行绘图，支持文生图和图生图，效果较好
-  - `是否使用系统角色`: 禁用 (**谷歌模型不支持系统角色**)
-  - `绘图模型调用格式`: 聊天模式
-  - `聊天模式使用流式 API`: 启用
-- **sora_image**: 使用 Sora 模型进行绘图，支持文生图和图生图，效果非常好，支持精细化绘图指令，但速度较慢且价格较贵
-  - `绘图模型调用格式`: 聊天模式
-  - `绘图超时时间`: 300
 - **Kolors**: 国产绘图模型，价格便宜，画风单一，效果一般，但速度较快
   - `绘图模型调用格式`: 图像生成
   - `模型推理步数`: 20
@@ -61,15 +54,13 @@ from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
-import json # For debug
-
 
 # 创建插件实例
 plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.1.3",
+    version="0.2.0",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
