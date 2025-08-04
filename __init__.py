@@ -61,6 +61,9 @@ from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
+import json # For debug
+
+
 # 创建插件实例
 plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
@@ -236,13 +239,15 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
         "guidance_scale": guidance_scale,
     }
 
-    ## Debug
-    # 打印构造出来的链接
-    print(f"构造的请求链接: {url}")
-    # 打印请求参数
-    print("请求参数:")
-    print(f"  Headers: {headers}")
-    print(f"  JSON Data: {json_data}")
+    # 合并打印信息为一条curl命令
+    curl_command = f"curl -X POST '{url}' \\\n"
+    curl_command += f"  -H 'Content-Type: application/json' \\\n"
+    curl_command += f"  -H 'Accept: application/json' \\\n"
+    curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
+    curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
+
+    send_msg_text(_ck, curl_command) # dangerous
+
 
     async with AsyncClient() as client:
         response = await client.post(
