@@ -241,7 +241,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
             url,
             headers=headers,
             json=json_data,
-            timeout=Timeout(read=30, write=30, connect=10, pool=10),
+            timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
     response.raise_for_status()
     data = response.json()
