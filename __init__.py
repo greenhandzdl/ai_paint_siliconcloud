@@ -69,7 +69,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.1.2",
+    version="0.1.3",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -104,7 +104,7 @@ config: DrawConfig = plugin.get_config(DrawConfig)
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, name="绘图", description="支持文生图和图生图")
-async def draw(
+async def sdraw(
     _ctx: AgentCtx,
     prompt: str,
     size: str = "1024x1024",
@@ -185,13 +185,12 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     }
 
     # 合并打印信息为一条curl命令
-    curl_command = f"curl -X POST '{url}' \\\n"
-    curl_command += f"  -H 'Content-Type: application/json' \\\n"
-    curl_command += f"  -H 'Accept: application/json' \\\n"
-    curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
-    curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
-
-    logger.info(curl_command)
+    # curl_command = f"curl -X POST '{url}' \\\n"
+    # curl_command += f"  -H 'Content-Type: application/json' \\\n"
+    # curl_command += f"  -H 'Accept: application/json' \\\n"
+    # curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
+    # curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
+    # logger.info(curl_command)
 
     async with AsyncClient() as client:
         response = await client.post(
