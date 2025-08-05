@@ -54,13 +54,15 @@ from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
+from nekro_agent.core.core_utils import ConfigBase, ExtraField
+
 
 # 创建插件实例
 plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.3.1",
+    version="0.3.2",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -76,11 +78,6 @@ class DrawConfig(ConfigBase):
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
     MODEL_MODE: Literal["自动选择（暂不可用）", "图像生成", "聊天模式（暂不可用）"] = Field(default="图像生成", title="绘图模型调用格式")
-    NEGATIVE_PROMPT: str = Field(
-        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
-        title="负面提示",
-        description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
-    )
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
     USE_SYSTEM_ROLE: bool = Field(
         default=False,
@@ -93,6 +90,12 @@ class DrawConfig(ConfigBase):
         description="由于模型生成时间问题，部分模型需要在聊天模式下启用流式 API 才能正常工作",
     )
     TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
+    NEGATIVE_PROMPT: str = Field(
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
+        title="负面提示",
+        description="模型生成图像时的负面提示，置空则请求中不添加负面提示词，不修改原行为，支持自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+        json_schema_extra=ExtraField(is_textarea=True).model_dump(),
+    )
 
 
 # 获取配置
@@ -103,6 +106,7 @@ config: DrawConfig = plugin.get_config(DrawConfig)
 async def sdraw(
     _ctx: AgentCtx,
     prompt: str,
+    negative_prompt: str,
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
@@ -119,6 +123,12 @@ async def sdraw(
             - Overall mood or atmosphere
             - Very detailed description or story (optional, recommend for comics)
             - Art style (e.g., illustration, watercolor... any style you want)
+        negative_prompt (str): Negative description of the image to avoid unwanted features.(Only supports English)
+            Must elements to exclude:
+            - User explicitly pointed out
+            Notice:
+            - Please use a comma to split the prompts.
+            - In addition, if the user does not explicitly indicate that they do not want an element, keep it blank.
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
@@ -136,7 +146,7 @@ async def sdraw(
     """
 
     # logger.info(f"绘图提示: {prompt}")
-    # logger.info (f"负面提示: {negative_prompt}")
+    logger.info (f"负面提示: {negative_prompt}")
     # logger.info(f"绘图尺寸: {size}")
     # logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
@@ -154,49 +164,41 @@ async def sdraw(
         raise Exception(f"绘图模型组 `{config.USE_DRAW_MODEL_GROUP}` 未配置")
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
 
+    negative_prompt = f"{config.NEGATIVE_PROMPT} {negative_prompt}"
+
     return await _ctx.fs.mixed_forward_file(
-        await _generate_image(model_group, prompt, config.NEGATIVE_PROMPT, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+        await _generate_image(model_group, prompt, negative_prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
     )
 
 async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
-    # 构造请求链接
-    url = f"{model_group.BASE_URL}/images/generations"
-    
-    # 构造请求头
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": f"Bearer {model_group.API_KEY}",
-    }
-    
+
     # 构造请求体
     json_data = {
         "model": model_group.CHAT_MODEL,
         "prompt": prompt,
-        "negative_prompt": negative_prompt,
         "image_size": size,
         "batch_size": 1,
         "seed": random.randint(0, 9999999999),
         "num_inference_steps": num_inference_steps,
         "guidance_scale": guidance_scale,
     }
-    # 这里加个判断，如果source_image_data != "data:image/webp;base64, XXX"则在json_data中填入image
+    # 如果source_image_data != "data:image/webp;base64, XXX"(根据前面refer_image)则在json_data中填入image
+    # 防止siliconcloud在image填入错误数据会失败
     if source_image_data != "data:image/webp;base64, XXX":
         json_data["image"] = source_image_data
-
-    # 合并打印信息为一条curl命令
-    # curl_command = f"curl -X POST '{url}' \\\n"
-    # curl_command += f"  -H 'Content-Type: application/json' \\\n"
-    # curl_command += f"  -H 'Accept: application/json' \\\n"
-    # curl_command += f"  -H 'Authorization: Bearer {model_group.API_KEY}' \\\n"
-    # curl_command += f"  -d '{json.dumps(json_data, indent=2, ensure_ascii=False)}'"
-    # logger.info(curl_command)
+    # 检测negative_prompt删去所有空格字符是否为空
+    if negative_prompt.replace(" ", "") != "":
+        json_data["negative_prompt"] = negative_prompt
 
     async with AsyncClient() as client:
         response = await client.post(
-            url,
-            headers=headers,
+            f"{model_group.BASE_URL}/images/generations",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {model_group.API_KEY}",
+            },
             json=json_data,
             timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
@@ -205,6 +207,7 @@ async def _generate_image(model_group, prompt, negative_prompt, size, num_infere
     ret_url = data["data"][0]["url"]
     if ret_url:
         return ret_url
+    logger.error(f"绘图响应中未找到图片信息: {data}")
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
