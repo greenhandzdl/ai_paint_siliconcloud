@@ -60,7 +60,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.3.0",
+    version="0.3.1",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -76,6 +76,11 @@ class DrawConfig(ConfigBase):
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
     MODEL_MODE: Literal["自动选择（暂不可用）", "图像生成", "聊天模式（暂不可用）"] = Field(default="图像生成", title="绘图模型调用格式")
+    NEGATIVE_PROMPT: str = Field(
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
+        title="负面提示",
+        description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+    )
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
     USE_SYSTEM_ROLE: bool = Field(
         default=False,
@@ -98,7 +103,6 @@ config: DrawConfig = plugin.get_config(DrawConfig)
 async def sdraw(
     _ctx: AgentCtx,
     prompt: str,
-    negative_prompt: str = "((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
@@ -115,15 +119,6 @@ async def sdraw(
             - Overall mood or atmosphere
             - Very detailed description or story (optional, recommend for comics)
             - Art style (e.g., illustration, watercolor... any style you want)
-        negative_prompt (str): Natural language description of the image you don't want to draw. (Only supports English)
-            Suggested elements to include:
-            - Bad drawing details (blur, low resolution, low contrast...)
-            - Bad quality (low quality, bad quality:2.0)
-            - Bad element 
-            - NSFW content (nsfw:1.0)
-            - Unstable element (marble, low resolution, blur)
-            - Other bad content you don't like
-            - Please use a comma to split the prompts.
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
@@ -140,8 +135,8 @@ async def sdraw(
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg")) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
     """
 
-    logger.info(f"绘图提示: {prompt}")
-    logger.info (f"负面提示: {negative_prompt}")
+    # logger.info(f"绘图提示: {prompt}")
+    # logger.info (f"负面提示: {negative_prompt}")
     # logger.info(f"绘图尺寸: {size}")
     # logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
@@ -160,7 +155,7 @@ async def sdraw(
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
 
     return await _ctx.fs.mixed_forward_file(
-        await _generate_image(model_group, prompt, negative_prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+        await _generate_image(model_group, prompt, config.NEGATIVE_PROMPT, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
     )
 
 async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
