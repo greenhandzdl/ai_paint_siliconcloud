@@ -60,7 +60,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.2.1",
+    version="0.2.2", # 0.3-Preview
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -98,6 +98,7 @@ config: DrawConfig = plugin.get_config(DrawConfig)
 async def sdraw(
     _ctx: AgentCtx,
     prompt: str,
+    negative_prompt: str = "((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
@@ -130,7 +131,8 @@ async def sdraw(
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg")) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
     """
 
-    # logger.info(f"绘图提示: {prompt}")
+    logger.info(f"绘图提示: {prompt}")
+    logger.info (f"负面提示: {negative_prompt}")
     # logger.info(f"绘图尺寸: {size}")
     # logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
@@ -149,10 +151,10 @@ async def sdraw(
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
 
     return await _ctx.fs.mixed_forward_file(
-        await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+        await _generate_image(model_group, prompt, negative_prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
     )
 
-async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
+async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
     # 构造请求链接
     url = f"{model_group.BASE_URL}/images/generations"
@@ -168,6 +170,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     json_data = {
         "model": model_group.CHAT_MODEL,
         "prompt": prompt,
+        "negative_prompt": negative_prompt,
         "image_size": size,
         "batch_size": 1,
         "seed": random.randint(0, 9999999999),
