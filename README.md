@@ -4,7 +4,7 @@
 
 > ⚠️ **重要警告**: 此插件中AI修改负面提示词的行为不可控，可能导致生成不符合预期的图像。**强烈不推荐使用本插件**。
 
-推荐用户使用Nekro Agent内置的draw插件，该插件已添加对负面提示词的支持（PR [#118](https://github.com/neko-xyz/nekro-agent/pull/118)），是更安全可靠的替代方案。
+推荐用户使用Nekro Agent内置的draw插件，该插件添加对负面提示词的支持（PR [#118](https://github.com/KroMiose/nekro-agent/pull/118)），是更安全可靠的替代方案。
 
 这是为 [Nekro Agent](https://github.com/nekroai/nekro-agent) 开发的AI绘画插件，支持文生图和图生图功能，专为 SiliconCloud 平台定制。
 
