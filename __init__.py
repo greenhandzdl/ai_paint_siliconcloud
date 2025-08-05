@@ -60,7 +60,7 @@ plugin = NekroPlugin(
     name="ai_paint_siliconcloud",
     module_name="ai_paint_siliconcloud",
     description="AI绘画（SiliconCloud定制版本)",
-    version="0.2.3", # 0.3-Preview
+    version="0.3.0",
     author="greenhandzdl",
     url="https://github.com/greenhandzdl/ai_paint_siliconcloud",
 )
@@ -120,6 +120,10 @@ async def sdraw(
             - Bad drawing details (blur, low resolution, low contrast...)
             - Bad quality (low quality, bad quality:2.0)
             - Bad element 
+            - NSFW content (nsfw:1.0)
+            - Unstable element (marble, low resolution, blur)
+            - Other bad content you don't like
+            - Please use a comma to split the prompts.
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
